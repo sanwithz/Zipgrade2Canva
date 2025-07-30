@@ -814,10 +814,10 @@
             const button = $(this);
             button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>กำลังสร้างรูปภาพ...');
             
-            $.LoadingOverlay("show", {
-                image: "",
-                fontawesome: "fas fa-spinner fa-spin"
-            });
+            // $.LoadingOverlay("show", {
+            //     image: "",
+            //     fontawesome: "fas fa-spinner fa-spin"
+            // });
 
             // Capture the entire page content
             html2canvas(document.body, {
@@ -839,13 +839,13 @@
                 $.LoadingOverlay("hide");
                 button.prop('disabled', false).html('<i class="fas fa-image mr-2"></i>ส่งออกรูปภาพ');
                 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'สำเร็จ!',
-                    text: 'ส่งออกรูปภาพเรียบร้อยแล้ว',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
+                // Swal.fire({
+                //     icon: 'success',
+                //     title: 'สำเร็จ!',
+                //     text: 'ส่งออกรูปภาพเรียบร้อยแล้ว',
+                //     timer: 2000,
+                //     showConfirmButton: false
+                // });
             }).catch(error => {
                 console.error('Error generating image:', error);
                 $.LoadingOverlay("hide");
