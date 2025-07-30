@@ -52,6 +52,11 @@
         .level-excellent { border-left: 5px solid #10b981; }
         .level-good { border-left: 5px solid #f59e0b; }
         .level-needs-improvement { border-left: 5px solid #ef4444; }
+        
+        .threshold-info {
+            background: linear-gradient(135deg, #e0f2fe 0%, #f3e5f5 100%);
+            border: 1px solid #b39ddb;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -63,7 +68,7 @@
                     <i class="fas fa-chart-line mr-3"></i>
                     ระบบวิเคราะห์ผลสอบ
                 </h1>
-                <p class="text-xl opacity-90">Exam Analysis System</p>
+                <p class="text-xl opacity-90">Exam Analysis System with Smart Score Grouping</p>
             </div>
         </div>
     </div>
@@ -134,6 +139,40 @@
                 <div class="bg-white rounded-lg card-shadow p-6 text-center">
                     <div class="text-3xl font-bold text-orange-600 mb-2" id="minScore">0%</div>
                     <div class="text-gray-600">คะแนนต่ำสุด</div>
+                </div>
+            </div>
+
+            <!-- Score Thresholds Info -->
+            <div class="threshold-info rounded-lg p-6 mb-8">
+                <h3 class="text-xl font-bold text-purple-800 mb-4">
+                    <i class="fas fa-layer-group mr-2"></i>
+                    เกณฑ์การแบ่งกลุ่มนักเรียน (Smart Score Grouping)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                        <div class="text-lg font-bold text-green-600 mb-2">เก่ง (Excellent)</div>
+                        <div class="text-sm text-gray-600 mb-2">คะแนน ≥ <span id="topThreshold" class="font-bold">-</span></div>
+                        <div class="text-2xl font-bold text-green-600" id="excellentCount">0</div>
+                        <div class="text-xs text-gray-500">คน</div>
+                    </div>
+                    <div class="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <div class="text-lg font-bold text-yellow-600 mb-2">กลาง (Average)</div>
+                        <div class="text-sm text-gray-600 mb-2"><span id="bottomThreshold" class="font-bold">-</span> < คะแนน < <span id="topThresholdMid" class="font-bold">-</span></div>
+                        <div class="text-2xl font-bold text-yellow-600" id="averageCount">0</div>
+                        <div class="text-xs text-gray-500">คน</div>
+                    </div>
+                    <div class="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                        <div class="text-lg font-bold text-red-600 mb-2">อ่อน (Needs Improvement)</div>
+                        <div class="text-sm text-gray-600 mb-2">คะแนน ≤ <span id="bottomThresholdLow" class="font-bold">-</span></div>
+                        <div class="text-2xl font-bold text-red-600" id="needsImprovementCount">0</div>
+                        <div class="text-xs text-gray-500">คน</div>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-white rounded-lg border border-purple-200">
+                    <p class="text-sm text-purple-700">
+                        <i class="fas fa-lightbulb mr-2"></i>
+                        <strong>หลักการ:</strong> ระบบใช้เกณฑ์คะแนนจริงแทนการแบ่งแบบเปอร์เซ็นไทล์แบบตายตัว เพื่อป้องกันนักเรียนที่ได้คะแนนเท่ากันถูกแยกไปคนละกลุ่ม
+                    </p>
                 </div>
             </div>
         </div>
@@ -263,7 +302,8 @@
                 <div class="bg-white rounded-lg card-shadow p-6">
                     <h3 class="text-xl font-bold text-green-600 mb-4">
                         <i class="fas fa-star mr-2"></i>
-                        นักเรียนเก่ง (Top 33%)
+                        นักเรียนเก่ง (Excellent)
+                        <span class="text-sm font-normal text-gray-500 ml-2" id="excellentRange"></span>
                     </h3>
                     <div id="excellentStudents" class="space-y-3"></div>
                 </div>
@@ -272,7 +312,8 @@
                 <div class="bg-white rounded-lg card-shadow p-6">
                     <h3 class="text-xl font-bold text-yellow-600 mb-4">
                         <i class="fas fa-user mr-2"></i>
-                        นักเรียนกลาง (Middle 33%)
+                        นักเรียนกลาง (Average)
+                        <span class="text-sm font-normal text-gray-500 ml-2" id="averageRange"></span>
                     </h3>
                     <div id="averageStudents" class="space-y-3"></div>
                 </div>
@@ -281,7 +322,8 @@
                 <div class="bg-white rounded-lg card-shadow p-6">
                     <h3 class="text-xl font-bold text-red-600 mb-4">
                         <i class="fas fa-user-clock mr-2"></i>
-                        นักเรียนอ่อน (Bottom 33%)
+                        นักเรียนอ่อน (Needs Improvement)
+                        <span class="text-sm font-normal text-gray-500 ml-2" id="needsImprovementRange"></span>
                     </h3>
                     <div id="needsImprovementStudents" class="space-y-3"></div>
                 </div>
@@ -317,6 +359,7 @@
     <script>
         let examData = [];
         let charts = {};
+        let scoreThresholds = { top: 0, bottom: 0 };
 
         // Load data from API
         $('#loadDataBtn').click(function() {
@@ -513,24 +556,42 @@
             $('#maxScore').text(`${maxRawScore}/${totalQuestions}`);
             $('#minScore').text(`${minRawScore}/${totalQuestions}`);
 
-            // Sort students by score for percentile calculation (using raw scores)
+            // Sort students by score for threshold calculation
             const sortedStudents = [...examData].sort((a, b) => 
                 parseInt(b['Num Correct']) - parseInt(a['Num Correct'])
             );
 
-            // Categorize students by percentile
+            // Calculate score-based thresholds to prevent splitting identical scores
+            const scores = sortedStudents.map(s => parseInt(s['Num Correct']));
             const totalStudents = sortedStudents.length;
-            const topThird = Math.ceil(totalStudents / 3);
-            const middleThird = Math.ceil(totalStudents * 2 / 3);
+            
+            // Find the 33rd and 67th percentile positions
+            const p67Index = Math.floor(totalStudents * 0.33); // Top 33%
+            const p33Index = Math.floor(totalStudents * 0.67); // Bottom 33%
+            
+            // Get actual score thresholds at these positions
+            const topThreshold = scores[Math.min(p67Index, scores.length - 1)];
+            const bottomThreshold = scores[Math.min(p33Index, scores.length - 1)];
+            
+            // Store thresholds globally
+            scoreThresholds = { top: topThreshold, bottom: bottomThreshold };
 
-            const excellentStudents = sortedStudents.slice(0, topThird);
-            const averageStudents = sortedStudents.slice(topThird, middleThird);
-            const needsImprovementStudents = sortedStudents.slice(middleThird);
+            // Categorize students based on score thresholds (prevents splitting same scores)
+            const excellentStudents = sortedStudents.filter(s => parseInt(s['Num Correct']) >= topThreshold);
+            const needsImprovementStudents = sortedStudents.filter(s => parseInt(s['Num Correct']) <= bottomThreshold);
+            const averageStudents = sortedStudents.filter(s => {
+                const score = parseInt(s['Num Correct']);
+                return score < topThreshold && score > bottomThreshold;
+            });
+
+            // Update threshold display
+            updateThresholdDisplay(topThreshold, bottomThreshold, totalQuestions, 
+                excellentStudents.length, averageStudents.length, needsImprovementStudents.length);
 
             // Display student categories
-            displayStudentCategory('excellentStudents', excellentStudents, 'level-excellent');
-            displayStudentCategory('averageStudents', averageStudents, 'level-good');
-            displayStudentCategory('needsImprovementStudents', needsImprovementStudents, 'level-needs-improvement');
+            displayStudentCategory('excellentStudents', excellentStudents, 'level-excellent', 'excellentRange', topThreshold, totalQuestions, '≥');
+            displayStudentCategory('averageStudents', averageStudents, 'level-good', 'averageRange', bottomThreshold, topThreshold, 'between');
+            displayStudentCategory('needsImprovementStudents', needsImprovementStudents, 'level-needs-improvement', 'needsImprovementRange', bottomThreshold, totalQuestions, '≤');
 
             // Create charts
             createScoreDistributionChart(rawScores, totalQuestions);
@@ -545,9 +606,31 @@
             createDataTable(sortedStudents);
         }
 
-        function displayStudentCategory(containerId, students, levelClass) {
+        function updateThresholdDisplay(topThreshold, bottomThreshold, totalQuestions, excellentCount, averageCount, needsImprovementCount) {
+            $('#topThreshold').text(`${topThreshold}/${totalQuestions}`);
+            $('#topThresholdMid').text(`${topThreshold}/${totalQuestions}`);
+            $('#bottomThreshold').text(`${bottomThreshold}/${totalQuestions}`);
+            $('#bottomThresholdLow').text(`${bottomThreshold}/${totalQuestions}`);
+            
+            $('#excellentCount').text(excellentCount);
+            $('#averageCount').text(averageCount);
+            $('#needsImprovementCount').text(needsImprovementCount);
+        }
+
+        function displayStudentCategory(containerId, students, levelClass, rangeId, threshold1, threshold2, type) {
             const container = $('#' + containerId);
+            const rangeElement = $('#' + rangeId);
             container.empty();
+
+            // Set range display
+            const totalQuestions = parseInt(examData[0]['Num Questions']);
+            if (type === '≥') {
+                rangeElement.text(`(≥ ${threshold1}/${totalQuestions})`);
+            } else if (type === '≤') {
+                rangeElement.text(`(≤ ${threshold1}/${totalQuestions})`);
+            } else if (type === 'between') {
+                rangeElement.text(`(${threshold1 + 1}-${threshold2 - 1}/${totalQuestions})`);
+            }
 
             students.forEach((student, index) => {
                 const studentCard = $(`
@@ -558,7 +641,7 @@
                                     ${student['First Name']} ${student['Last Name']}
                                 </div>
                                 <div class="text-sm text-gray-600">
-                                    รหัส: ${student['External Id']}
+                                    รหัส: ${student['External Id'] || 'N/A'}
                                 </div>
                             </div>
                             <div class="text-right">
@@ -740,15 +823,17 @@
 
             sortedStudents.forEach((student, index) => {
                 const score = parseFloat(student['Percent Correct']);
-                let level = 'อ่อน';
-                let levelClass = 'text-red-600';
+                const rawScore = parseInt(student['Num Correct']);
                 
-                if (index < Math.ceil(sortedStudents.length / 3)) {
+                let level = 'กลาง';
+                let levelClass = 'text-yellow-600';
+                
+                if (rawScore >= scoreThresholds.top) {
                     level = 'เก่ง';
                     levelClass = 'text-green-600';
-                } else if (index < Math.ceil(sortedStudents.length * 2 / 3)) {
-                    level = 'กลาง';
-                    levelClass = 'text-yellow-600';
+                } else if (rawScore <= scoreThresholds.bottom) {
+                    level = 'อ่อน';
+                    levelClass = 'text-red-600';
                 }
 
                 const row = $(`
@@ -787,7 +872,7 @@
             pdfContent.append(`
                 <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #667eea; padding-bottom: 20px;">
                     <h1 style="color: #667eea; font-size: 28px; margin: 0;">รายงานการวิเคราะห์ผลสอบ</h1>
-                    <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Exam Analysis Report</p>
+                    <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Exam Analysis Report with Smart Score Grouping</p>
                     <p style="color: #888; font-size: 14px; margin: 5px 0 0 0;">สร้างเมื่อ: ${new Date().toLocaleDateString('th-TH')}</p>
                 </div>
             `);
@@ -817,6 +902,28 @@
                 </div>
             `;
             pdfContent.append(stats);
+
+            // Add threshold information
+            const thresholdInfo = `
+                <div style="margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #e0f2fe 0%, #f3e5f5 100%); border-radius: 8px;">
+                    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">เกณฑ์การแบ่งกลุ่มนักเรียน</h2>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
+                            <div style="font-size: 18px; font-weight: bold; color: #10b981;">เก่ง: ${$('#excellentCount').text()} คน</div>
+                            <div style="color: #666; font-size: 14px;">คะแนน ≥ ${$('#topThreshold').text()}</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
+                            <div style="font-size: 18px; font-weight: bold; color: #f59e0b;">กลาง: ${$('#averageCount').text()} คน</div>
+                            <div style="color: #666; font-size: 14px;">${$('#bottomThreshold').text()} < คะแนน < ${$('#topThreshold').text()}</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
+                            <div style="font-size: 18px; font-weight: bold; color: #ef4444;">อ่อน: ${$('#needsImprovementCount').text()} คน</div>
+                            <div style="color: #666; font-size: 14px;">คะแนน ≤ ${$('#bottomThreshold').text()}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            pdfContent.append(thresholdInfo);
 
             // Add student data table
             const tableHtml = `
@@ -871,7 +978,7 @@
                     heightLeft -= pageHeight;
                 }
 
-                pdf.save('exam-analysis-report.pdf');
+                pdf.save('exam-analysis-smart-grouping.pdf');
                 
                 // Clean up
                 pdfContent.remove();
@@ -922,7 +1029,7 @@
             }).then(canvas => {
                 // Create download link
                 const link = document.createElement('a');
-                link.download = 'exam-analysis-report.png';
+                link.download = 'exam-analysis-smart-grouping.png';
                 link.href = canvas.toDataURL('image/png');
                 link.click();
                 
