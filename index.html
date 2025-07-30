@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบวิเคราะห์ผลสอบ - Exam Analysis System</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .student-card {
+            transition: all 0.3s ease;
+        }
+        
+        .student-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        
+        .level-excellent { border-left: 5px solid #10b981; }
+        .level-good { border-left: 5px solid #f59e0b; }
+        .level-needs-improvement { border-left: 5px solid #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="gradient-bg text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold mb-2">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    ระบบวิเคราะห์ผลสอบ
+                </h1>
+                <p class="text-xl opacity-90">Exam Analysis System</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Load Data Section -->
+        <div class="bg-white rounded-lg card-shadow p-6 mb-8 animate-fade-in">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-upload mr-2 text-blue-600"></i>
+                    โหลดข้อมูลสอบ
+                </h2>
+                <div class="flex space-x-3">
+                    <button id="loadDataBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-download mr-2"></i>
+                        โหลดจาก API
+                    </button>
+                    <label for="csvFile" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors cursor-pointer">
+                        <i class="fas fa-file-csv mr-2"></i>
+                        อัปโหลด CSV
+                    </label>
+                    <input type="file" id="csvFile" accept=".csv" class="hidden">
+                    <button id="exportPdfBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors hidden">
+                        <i class="fas fa-file-pdf mr-2"></i>
+                        ส่งออก PDF
+                    </button>
+                    <button id="exportImageBtn" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-colors hidden">
+                        <i class="fas fa-image mr-2"></i>
+                        ส่งออกรูปภาพ
+                    </button>
+                </div>
+            </div>
+            <div id="dataStatus" class="text-gray-600">
+                <i class="fas fa-info-circle mr-2"></i>
+                เลือกโหลดข้อมูลจาก API หรืออัปโหลดไฟล์ CSV ของคุณเอง
+            </div>
+            
+            <!-- CSV Format Info -->
+            <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 class="font-semibold text-blue-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    รูปแบบไฟล์ CSV ที่รองรับ:
+                </h4>
+                <div class="text-sm text-blue-700">
+                    <p>• ต้องมีคอลัมน์: First Name, Last Name, Num Questions, Num Correct, Percent Correct</p>
+                    <p>• คอลัมน์คำถาม: Q1, Q2, Q3, ... (ค่า 0 = ผิด, 1 = ถูก)</p>
+                    <p>• สามารถมีคอลัมน์เพิ่มเติม: External Id, Quiz Name, Class</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Overview -->
+        <div id="statsSection" class="hidden animate-fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg card-shadow p-6 text-center">
+                    <div class="text-3xl font-bold text-blue-600 mb-2" id="totalStudents">0</div>
+                    <div class="text-gray-600">จำนวนนักเรียน</div>
+                </div>
+                <div class="bg-white rounded-lg card-shadow p-6 text-center">
+                    <div class="text-3xl font-bold text-green-600 mb-2" id="avgScore">0%</div>
+                    <div class="text-gray-600">คะแนนเฉลี่ย</div>
+                </div>
+                <div class="bg-white rounded-lg card-shadow p-6 text-center">
+                    <div class="text-3xl font-bold text-red-600 mb-2" id="maxScore">0%</div>
+                    <div class="text-gray-600">คะแนนสูงสุด</div>
+                </div>
+                <div class="bg-white rounded-lg card-shadow p-6 text-center">
+                    <div class="text-3xl font-bold text-orange-600 mb-2" id="minScore">0%</div>
+                    <div class="text-gray-600">คะแนนต่ำสุด</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div id="chartsSection" class="hidden animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Score Distribution Chart -->
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-chart-bar mr-2 text-purple-600"></i>
+                        การกระจายคะแนน
+                    </h3>
+                    <canvas id="scoreChart" width="400" height="300"></canvas>
+                </div>
+
+                <!-- Student Level Distribution -->
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-chart-pie mr-2 text-indigo-600"></i>
+                        การแบ่งระดับนักเรียน
+                    </h3>
+                    <canvas id="levelChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+
+            <!-- Question Analysis Chart -->
+            <div class="bg-white rounded-lg card-shadow p-6 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line mr-2 text-teal-600"></i>
+                    การวิเคราะห์ข้อสอบ (Question Item Analysis)
+                </h3>
+                <canvas id="questionChart" width="800" height="400"></canvas>
+            </div>
+        </div>
+
+        <!-- Student Categories -->
+        <div id="studentsSection" class="hidden animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Excellent Students -->
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <h3 class="text-xl font-bold text-green-600 mb-4">
+                        <i class="fas fa-star mr-2"></i>
+                        นักเรียนเก่ง (Top 33%)
+                    </h3>
+                    <div id="excellentStudents" class="space-y-3"></div>
+                </div>
+
+                <!-- Average Students -->
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <h3 class="text-xl font-bold text-yellow-600 mb-4">
+                        <i class="fas fa-user mr-2"></i>
+                        นักเรียนกลาง (Middle 33%)
+                    </h3>
+                    <div id="averageStudents" class="space-y-3"></div>
+                </div>
+
+                <!-- Needs Improvement Students -->
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <h3 class="text-xl font-bold text-red-600 mb-4">
+                        <i class="fas fa-user-clock mr-2"></i>
+                        นักเรียนอ่อน (Bottom 33%)
+                    </h3>
+                    <div id="needsImprovementStudents" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Data Table -->
+        <div id="tableSection" class="hidden animate-fade-in mt-8">
+            <div class="bg-white rounded-lg card-shadow p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-table mr-2 text-gray-600"></i>
+                    ข้อมูลรายละเอียด
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full table-auto">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left">ลำดับ</th>
+                                <th class="px-4 py-2 text-left">ชื่อ-นามสกุล</th>
+                                <th class="px-4 py-2 text-left">คะแนน</th>
+                                <th class="px-4 py-2 text-left">เปอร์เซ็นต์</th>
+                                <th class="px-4 py-2 text-left">ระดับ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let examData = [];
+        let charts = {};
+
+        // Load data from API
+        $('#loadDataBtn').click(function() {
+            $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>กำลังโหลด...');
+            
+            $.LoadingOverlay("show", {
+                image: "",
+                fontawesome: "fas fa-spinner fa-spin"
+            });
+
+            $.ajax({
+                url: 'https://opensheet.elk.sh/1Hz0xbpQWIIcUHBxQIy3kITLVLJmEzeVp0SYDTgnO7i0/data',
+                method: 'GET',
+                success: function(data) {
+                    examData = data;
+                    processData();
+                    showSuccessMessage('API', data.length);
+                },
+                error: function() {
+                    showErrorMessage('ไม่สามารถโหลดข้อมูลจาก API ได้ กรุณาลองใหม่อีกครั้ง');
+                },
+                complete: function() {
+                    $.LoadingOverlay("hide");
+                    $('#loadDataBtn').prop('disabled', false).html('<i class="fas fa-download mr-2"></i>โหลดจาก API');
+                }
+            });
+        });
+
+        // Handle CSV file upload
+        $('#csvFile').change(function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ไฟล์ไม่ถูกต้อง!',
+                    text: 'กรุณาเลือกไฟล์ CSV เท่านั้น'
+                });
+                return;
+            }
+
+            $.LoadingOverlay("show", {
+                image: "",
+                fontawesome: "fas fa-spinner fa-spin"
+            });
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const csv = e.target.result;
+                    const data = parseCSV(csv);
+                    
+                    if (validateCSVData(data)) {
+                        examData = data;
+                        processData();
+                        showSuccessMessage('CSV', data.length);
+                    } else {
+                        showErrorMessage('รูปแบบไฟล์ CSV ไม่ถูกต้อง กรุณาตรวจสอบคอลัมน์ที่จำเป็น');
+                    }
+                } catch (error) {
+                    showErrorMessage('เกิดข้อผิดพลาดในการอ่านไฟล์ CSV: ' + error.message);
+                }
+                $.LoadingOverlay("hide");
+            };
+
+            reader.onerror = function() {
+                $.LoadingOverlay("hide");
+                showErrorMessage('เกิดข้อผิดพลาดในการอ่านไฟล์');
+            };
+
+            reader.readAsText(file);
+        });
+
+        // Parse CSV data
+        function parseCSV(csv) {
+            const lines = csv.split('\n').filter(line => line.trim());
+            if (lines.length < 2) throw new Error('ไฟล์ CSV ต้องมีอย่างน้อย 2 บรรทัด (header + data)');
+
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    data.push(row);
+                }
+            }
+
+            return data;
+        }
+
+        // Parse CSV line handling quoted values
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current.trim());
+            return result;
+        }
+
+        // Validate CSV data structure
+        function validateCSVData(data) {
+            if (!data || data.length === 0) return false;
+
+            const requiredColumns = ['First Name', 'Last Name', 'Num Questions', 'Num Correct', 'Percent Correct'];
+            const firstRow = data[0];
+
+            // Check if all required columns exist
+            for (const col of requiredColumns) {
+                if (!(col in firstRow)) {
+                    console.error('Missing required column:', col);
+                    return false;
+                }
+            }
+
+            // Check if there are question columns (Q1, Q2, etc.)
+            const questionColumns = Object.keys(firstRow).filter(key => key.match(/^Q\d+$/));
+            if (questionColumns.length === 0) {
+                console.error('No question columns found (Q1, Q2, etc.)');
+                return false;
+            }
+
+            return true;
+        }
+
+        // Show success message and update UI
+        function showSuccessMessage(source, count) {
+            $('#dataStatus').html(`<i class="fas fa-check-circle mr-2 text-green-600"></i>โหลดข้อมูลจาก ${source} สำเร็จ! พบข้อมูล ${count} คน`);
+            
+            // Show all sections
+            $('#statsSection, #chartsSection, #studentsSection, #tableSection').removeClass('hidden');
+            
+            // Show export buttons
+            $('#exportPdfBtn, #exportImageBtn').removeClass('hidden');
+            
+            // Trigger confetti
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: 'โหลดและวิเคราะห์ข้อมูลเรียบร้อยแล้ว',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+
+        // Show error message
+        function showErrorMessage(message) {
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด!',
+                text: message
+            });
+            $('#dataStatus').html('<i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>' + message);
+        }
+
+        function processData() {
+            if (examData.length === 0) return;
+
+            // Calculate statistics using raw scores (Num Correct / Num Questions)
+            const rawScores = examData.map(student => parseInt(student['Num Correct']));
+            const totalQuestions = parseInt(examData[0]['Num Questions']);
+            const avgRawScore = rawScores.reduce((a, b) => a + b, 0) / rawScores.length;
+            const maxRawScore = Math.max(...rawScores);
+            const minRawScore = Math.min(...rawScores);
+
+            // Update statistics display
+            $('#totalStudents').text(examData.length);
+            $('#avgScore').text(`${avgRawScore.toFixed(1)}/${totalQuestions}`);
+            $('#maxScore').text(`${maxRawScore}/${totalQuestions}`);
+            $('#minScore').text(`${minRawScore}/${totalQuestions}`);
+
+            // Sort students by score for percentile calculation (using raw scores)
+            const sortedStudents = [...examData].sort((a, b) => 
+                parseInt(b['Num Correct']) - parseInt(a['Num Correct'])
+            );
+
+            // Categorize students by percentile
+            const totalStudents = sortedStudents.length;
+            const topThird = Math.ceil(totalStudents / 3);
+            const middleThird = Math.ceil(totalStudents * 2 / 3);
+
+            const excellentStudents = sortedStudents.slice(0, topThird);
+            const averageStudents = sortedStudents.slice(topThird, middleThird);
+            const needsImprovementStudents = sortedStudents.slice(middleThird);
+
+            // Display student categories
+            displayStudentCategory('excellentStudents', excellentStudents, 'level-excellent');
+            displayStudentCategory('averageStudents', averageStudents, 'level-good');
+            displayStudentCategory('needsImprovementStudents', needsImprovementStudents, 'level-needs-improvement');
+
+            // Create charts
+            createScoreDistributionChart(rawScores, totalQuestions);
+            createLevelDistributionChart(excellentStudents.length, averageStudents.length, needsImprovementStudents.length);
+            createQuestionAnalysisChart();
+
+            // Create data table
+            createDataTable(sortedStudents);
+        }
+
+        function displayStudentCategory(containerId, students, levelClass) {
+            const container = $('#' + containerId);
+            container.empty();
+
+            students.forEach((student, index) => {
+                const studentCard = $(`
+                    <div class="student-card ${levelClass} bg-gray-50 p-4 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-semibold text-gray-800">
+                                    ${student['First Name']} ${student['Last Name']}
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    รหัส: ${student['External Id']}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-lg font-bold text-blue-600">
+                                    ${parseFloat(student['Percent Correct']).toFixed(1)}%
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    ${student['Num Correct']}/${student['Num Questions']}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                container.append(studentCard);
+            });
+        }
+
+        function createScoreDistributionChart(rawScores, totalQuestions) {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            
+            // Create score ranges based on raw scores
+            const ranges = [];
+            const counts = [];
+            
+            // Create ranges dynamically based on total questions
+            const rangeSize = Math.ceil(totalQuestions / 5);
+            for (let i = 0; i < 5; i++) {
+                const start = i * rangeSize;
+                const end = Math.min((i + 1) * rangeSize - 1, totalQuestions);
+                ranges.push(`${start}-${end}`);
+                counts.push(0);
+            }
+
+            rawScores.forEach(score => {
+                const rangeIndex = Math.min(Math.floor(score / rangeSize), 4);
+                counts[rangeIndex]++;
+            });
+
+            if (charts.scoreChart) charts.scoreChart.destroy();
+
+            charts.scoreChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ranges,
+                    datasets: [{
+                        label: 'จำนวนนักเรียน',
+                        data: counts,
+                        backgroundColor: [
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(34, 197, 94, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(239, 68, 68, 1)',
+                            'rgba(245, 158, 11, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(34, 197, 94, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createLevelDistributionChart(excellent, average, needsImprovement) {
+            const ctx = document.getElementById('levelChart').getContext('2d');
+
+            if (charts.levelChart) charts.levelChart.destroy();
+
+            charts.levelChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['เก่ง', 'กลาง', 'อ่อน'],
+                    datasets: [{
+                        data: [excellent, average, needsImprovement],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(245, 158, 11, 1)',
+                            'rgba(239, 68, 68, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createQuestionAnalysisChart() {
+            const ctx = document.getElementById('questionChart').getContext('2d');
+            
+            // Calculate correct percentage for each question
+            const numQuestions = parseInt(examData[0]['Num Questions']);
+            const questionData = [];
+            const questionLabels = [];
+
+            for (let i = 1; i <= numQuestions; i++) {
+                const questionKey = `Q${i}`;
+                const correctCount = examData.reduce((count, student) => {
+                    return count + (student[questionKey] === '1' ? 1 : 0);
+                }, 0);
+                
+                const percentage = (correctCount / examData.length) * 100;
+                questionData.push(percentage);
+                questionLabels.push(`ข้อ ${i}`);
+            }
+
+            if (charts.questionChart) charts.questionChart.destroy();
+
+            charts.questionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: questionLabels,
+                    datasets: [{
+                        label: 'เปอร์เซ็นต์ที่ตอบถูก',
+                        data: questionData,
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDataTable(sortedStudents) {
+            const tbody = $('#dataTableBody');
+            tbody.empty();
+
+            sortedStudents.forEach((student, index) => {
+                const score = parseFloat(student['Percent Correct']);
+                let level = 'อ่อน';
+                let levelClass = 'text-red-600';
+                
+                if (index < Math.ceil(sortedStudents.length / 3)) {
+                    level = 'เก่ง';
+                    levelClass = 'text-green-600';
+                } else if (index < Math.ceil(sortedStudents.length * 2 / 3)) {
+                    level = 'กลาง';
+                    levelClass = 'text-yellow-600';
+                }
+
+                const row = $(`
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-2">${index + 1}</td>
+                        <td class="px-4 py-2">${student['First Name']} ${student['Last Name']}</td>
+                        <td class="px-4 py-2">${student['Num Correct']}/${student['Num Questions']}</td>
+                        <td class="px-4 py-2">${score.toFixed(2)}%</td>
+                        <td class="px-4 py-2">
+                            <span class="font-semibold ${levelClass}">${level}</span>
+                        </td>
+                    </tr>
+                `);
+                tbody.append(row);
+            });
+        }
+
+        // Export to PDF functionality
+        $('#exportPdfBtn').click(function() {
+            const button = $(this);
+            button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>กำลังสร้าง PDF...');
+            
+            $.LoadingOverlay("show", {
+                image: "",
+                fontawesome: "fas fa-spinner fa-spin"
+            });
+
+            // Create a temporary container for PDF content
+            const pdfContent = $('<div>').addClass('pdf-export-content').css({
+                'background': 'white',
+                'padding': '20px',
+                'font-family': 'Sarabun, sans-serif'
+            });
+
+            // Add header
+            pdfContent.append(`
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #667eea; padding-bottom: 20px;">
+                    <h1 style="color: #667eea; font-size: 28px; margin: 0;">รายงานการวิเคราะห์ผลสอบ</h1>
+                    <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Exam Analysis Report</p>
+                    <p style="color: #888; font-size: 14px; margin: 5px 0 0 0;">สร้างเมื่อ: ${new Date().toLocaleDateString('th-TH')}</p>
+                </div>
+            `);
+
+            // Add statistics
+            const stats = `
+                <div style="margin-bottom: 30px;">
+                    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">สถิติภาพรวม</h2>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                        <div style="text-align: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${$('#totalStudents').text()}</div>
+                            <div style="color: #666; font-size: 14px;">จำนวนนักเรียน</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #10b981;">${$('#avgScore').text()}</div>
+                            <div style="color: #666; font-size: 14px;">คะแนนเฉลี่ย</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #ef4444;">${$('#maxScore').text()}</div>
+                            <div style="color: #666; font-size: 14px;">คะแนนสูงสุด</div>
+                        </div>
+                        <div style="text-align: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #f59e0b;">${$('#minScore').text()}</div>
+                            <div style="color: #666; font-size: 14px;">คะแนนต่ำสุด</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            pdfContent.append(stats);
+
+            // Add student data table
+            const tableHtml = `
+                <div style="margin-bottom: 30px;">
+                    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">รายละเอียดนักเรียน</h2>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background-color: #f8f9fa;">
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ลำดับ</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ชื่อ-นามสกุล</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">คะแนน</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">เปอร์เซ็นต์</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ระดับ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${$('#dataTableBody tr').map(function() {
+                                return '<tr>' + $(this).html().replace(/class="[^"]*"/g, '') + '</tr>';
+                            }).get().join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            pdfContent.append(tableHtml);
+
+            // Add to body temporarily
+            $('body').append(pdfContent);
+
+            // Generate PDF
+            html2canvas(pdfContent[0], {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const imgWidth = 210;
+                const pageHeight = 295;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                pdf.save('exam-analysis-report.pdf');
+                
+                // Clean up
+                pdfContent.remove();
+                $.LoadingOverlay("hide");
+                button.prop('disabled', false).html('<i class="fas fa-file-pdf mr-2"></i>ส่งออก PDF');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ!',
+                    text: 'ส่งออกไฟล์ PDF เรียบร้อยแล้ว',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }).catch(error => {
+                console.error('Error generating PDF:', error);
+                pdfContent.remove();
+                $.LoadingOverlay("hide");
+                button.prop('disabled', false).html('<i class="fas fa-file-pdf mr-2"></i>ส่งออก PDF');
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: 'ไม่สามารถสร้างไฟล์ PDF ได้'
+                });
+            });
+        });
+
+        // Export to Image functionality
+        $('#exportImageBtn').click(function() {
+            const button = $(this);
+            button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>กำลังสร้างรูปภาพ...');
+            
+            $.LoadingOverlay("show", {
+                image: "",
+                fontawesome: "fas fa-spinner fa-spin"
+            });
+
+            // Capture the entire page content
+            html2canvas(document.body, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#f9fafb',
+                height: window.innerHeight,
+                width: window.innerWidth,
+                scrollX: 0,
+                scrollY: 0
+            }).then(canvas => {
+                // Create download link
+                const link = document.createElement('a');
+                link.download = 'exam-analysis-report.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                $.LoadingOverlay("hide");
+                button.prop('disabled', false).html('<i class="fas fa-image mr-2"></i>ส่งออกรูปภาพ');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ!',
+                    text: 'ส่งออกรูปภาพเรียบร้อยแล้ว',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }).catch(error => {
+                console.error('Error generating image:', error);
+                $.LoadingOverlay("hide");
+                button.prop('disabled', false).html('<i class="fas fa-image mr-2"></i>ส่งออกรูปภาพ');
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: 'ไม่สามารถสร้างรูปภาพได้'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
