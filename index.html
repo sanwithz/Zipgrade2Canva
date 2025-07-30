@@ -168,6 +168,92 @@
                 </h3>
                 <canvas id="questionChart" width="800" height="400"></canvas>
             </div>
+
+            <!-- KR-20 Reliability Analysis -->
+            <div class="bg-white rounded-lg card-shadow p-6 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-calculator mr-2 text-blue-600"></i>
+                    การวิเคราะห์ความเชื่อมั่น (KR-20 Reliability Analysis)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600 mb-2" id="kr20Value">0.00</div>
+                        <div class="text-sm text-gray-600">KR-20 Coefficient</div>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600 mb-2" id="meanDifficulty">0.00</div>
+                        <div class="text-sm text-gray-600">Mean Difficulty</div>
+                    </div>
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <div class="text-2xl font-bold text-purple-600 mb-2" id="testVariance">0.00</div>
+                        <div class="text-sm text-gray-600">Test Variance</div>
+                    </div>
+                    <div class="text-center p-4 bg-orange-50 rounded-lg">
+                        <div class="text-lg font-bold mb-2" id="reliabilityInterpretation">-</div>
+                        <div class="text-sm text-gray-600">Reliability Level</div>
+                    </div>
+                </div>
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h4 class="font-semibold text-gray-800 mb-2">การตีความค่า KR-20:</h4>
+                    <div class="text-sm text-gray-600 grid grid-cols-2 gap-2">
+                        <div>• 0.90 ขึ้นไป: ความเชื่อมั่นสูงมาก (Excellent)</div>
+                        <div>• 0.80-0.89: ความเชื่อมั่นสูง (Good)</div>
+                        <div>• 0.70-0.79: ความเชื่อมั่นพอใช้ (Acceptable)</div>
+                        <div>• ต่ำกว่า 0.70: ความเชื่อมั่นต่ำ (Poor)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Analysis Table -->
+            <div class="bg-white rounded-lg card-shadow p-6 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-microscope mr-2 text-indigo-600"></i>
+                    การวิเคราะห์รายข้อ (Detailed Item Analysis)
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full table-auto text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left">ข้อที่</th>
+                                <th class="px-3 py-2 text-left">ความยาก (P)</th>
+                                <th class="px-3 py-2 text-left">อำนาจจำแนก (D)</th>
+                                <th class="px-3 py-2 text-left">Point-Biserial (r)</th>
+                                <th class="px-3 py-2 text-left">การตีความ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemAnalysisTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h4 class="font-semibold text-gray-800 mb-2">การตีความค่าสถิติ:</h4>
+                    <div class="text-sm text-gray-600 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <strong>ความยาก (P-value):</strong><br>
+                            • 0.80+ = ง่าย (Easy)<br>
+                            • 0.20-0.80 = ปานกลาง (Medium)<br>
+                            • <0.20 = ยาก (Hard)
+                        </div>
+                        <div>
+                            <strong>อำนาจจำแนก (D-value):</strong><br>
+                            • 0.40+ = ดีมาก (Excellent)<br>
+                            • 0.30-0.39 = ดี (Good)<br>
+                            • 0.20-0.29 = พอใช้ (Fair)<br>
+                            • <0.20 = ควรปรับปรุง (Poor)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Choice Analysis -->
+            <div id="choiceAnalysisSection" class="bg-white rounded-lg card-shadow p-6 mb-8 hidden">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list-ul mr-2 text-teal-600"></i>
+                    การวิเคราะห์ตัวเลือก (Choice Analysis)
+                </h3>
+                <div id="choiceAnalysisContent">
+                </div>
+            </div>
         </div>
 
         <!-- Student Categories -->
@@ -450,6 +536,10 @@
             createScoreDistributionChart(rawScores, totalQuestions);
             createLevelDistributionChart(excellentStudents.length, averageStudents.length, needsImprovementStudents.length);
             createQuestionAnalysisChart();
+
+            // Perform KR-20 and item analysis
+            performKR20Analysis();
+            performItemAnalysis();
 
             // Create data table
             createDataTable(sortedStudents);
@@ -814,10 +904,10 @@
             const button = $(this);
             button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>กำลังสร้างรูปภาพ...');
             
-            // $.LoadingOverlay("show", {
-            //     image: "",
-            //     fontawesome: "fas fa-spinner fa-spin"
-            // });
+            $.LoadingOverlay("show", {
+                image: "",
+                fontawesome: "fas fa-spinner fa-spin"
+            });
 
             // Capture the entire page content
             html2canvas(document.body, {
@@ -839,13 +929,13 @@
                 $.LoadingOverlay("hide");
                 button.prop('disabled', false).html('<i class="fas fa-image mr-2"></i>ส่งออกรูปภาพ');
                 
-                // Swal.fire({
-                //     icon: 'success',
-                //     title: 'สำเร็จ!',
-                //     text: 'ส่งออกรูปภาพเรียบร้อยแล้ว',
-                //     timer: 2000,
-                //     showConfirmButton: false
-                // });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ!',
+                    text: 'ส่งออกรูปภาพเรียบร้อยแล้ว',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
             }).catch(error => {
                 console.error('Error generating image:', error);
                 $.LoadingOverlay("hide");
@@ -858,6 +948,156 @@
                 });
             });
         });
+
+        // KR-20 Reliability Analysis
+        function performKR20Analysis() {
+            const numQuestions = parseInt(examData[0]['Num Questions']);
+            const numStudents = examData.length;
+            
+            // Calculate item difficulties (p-values)
+            const itemDifficulties = [];
+            for (let i = 1; i <= numQuestions; i++) {
+                const questionKey = `Q${i}`;
+                const correctCount = examData.reduce((count, student) => {
+                    return count + (student[questionKey] === '1' ? 1 : 0);
+                }, 0);
+                itemDifficulties.push(correctCount / numStudents);
+            }
+            
+            // Calculate test variance
+            const totalScores = examData.map(student => parseInt(student['Num Correct']));
+            const meanScore = totalScores.reduce((a, b) => a + b, 0) / numStudents;
+            const testVariance = totalScores.reduce((sum, score) => sum + Math.pow(score - meanScore, 2), 0) / numStudents;
+            
+            // Calculate sum of p(1-p)
+            const sumPQ = itemDifficulties.reduce((sum, p) => sum + (p * (1 - p)), 0);
+            
+            // Calculate KR-20
+            const kr20 = (numQuestions / (numQuestions - 1)) * (1 - (sumPQ / testVariance));
+            
+            // Calculate mean difficulty
+            const meanDifficulty = itemDifficulties.reduce((a, b) => a + b, 0) / numQuestions;
+            
+            // Update display
+            $('#kr20Value').text(kr20.toFixed(3));
+            $('#meanDifficulty').text(meanDifficulty.toFixed(3));
+            $('#testVariance').text(testVariance.toFixed(2));
+            
+            // Interpret reliability
+            let interpretation = '';
+            let interpretationClass = '';
+            if (kr20 >= 0.90) {
+                interpretation = 'Excellent';
+                interpretationClass = 'text-green-600';
+            } else if (kr20 >= 0.80) {
+                interpretation = 'Good';
+                interpretationClass = 'text-blue-600';
+            } else if (kr20 >= 0.70) {
+                interpretation = 'Acceptable';
+                interpretationClass = 'text-yellow-600';
+            } else {
+                interpretation = 'Poor';
+                interpretationClass = 'text-red-600';
+            }
+            
+            $('#reliabilityInterpretation').text(interpretation).attr('class', `text-lg font-bold mb-2 ${interpretationClass}`);
+        }
+
+        // Item Analysis
+        function performItemAnalysis() {
+            const numQuestions = parseInt(examData[0]['Num Questions']);
+            const numStudents = examData.length;
+            
+            // Sort students by total score for discrimination analysis
+            const sortedStudents = [...examData].sort((a, b) => 
+                parseInt(b['Num Correct']) - parseInt(a['Num Correct'])
+            );
+            
+            // Define high and low groups (top 27% and bottom 27%)
+            const groupSize = Math.floor(numStudents * 0.27);
+            const highGroup = sortedStudents.slice(0, groupSize);
+            const lowGroup = sortedStudents.slice(-groupSize);
+            
+            const tbody = $('#itemAnalysisTableBody');
+            tbody.empty();
+            
+            for (let i = 1; i <= numQuestions; i++) {
+                const questionKey = `Q${i}`;
+                
+                // Calculate difficulty (P-value)
+                const correctCount = examData.reduce((count, student) => {
+                    return count + (student[questionKey] === '1' ? 1 : 0);
+                }, 0);
+                const difficulty = correctCount / numStudents;
+                
+                // Calculate discrimination (D-value)
+                const highCorrect = highGroup.reduce((count, student) => {
+                    return count + (student[questionKey] === '1' ? 1 : 0);
+                }, 0);
+                const lowCorrect = lowGroup.reduce((count, student) => {
+                    return count + (student[questionKey] === '1' ? 1 : 0);
+                }, 0);
+                const discrimination = (highCorrect / groupSize) - (lowCorrect / groupSize);
+                
+                // Calculate Point-Biserial Correlation
+                const totalScores = examData.map(student => parseInt(student['Num Correct']));
+                const meanTotal = totalScores.reduce((a, b) => a + b, 0) / numStudents;
+                const stdTotal = Math.sqrt(totalScores.reduce((sum, score) => sum + Math.pow(score - meanTotal, 2), 0) / numStudents);
+                
+                let sumCorrect = 0;
+                let countCorrect = 0;
+                examData.forEach(student => {
+                    if (student[questionKey] === '1') {
+                        sumCorrect += parseInt(student['Num Correct']);
+                        countCorrect++;
+                    }
+                });
+                
+                const meanCorrect = countCorrect > 0 ? sumCorrect / countCorrect : 0;
+                const pointBiserial = countCorrect > 0 ? 
+                    ((meanCorrect - meanTotal) / stdTotal) * Math.sqrt((difficulty * (1 - difficulty))) : 0;
+                
+                // Interpret values
+                let difficultyInterpretation = '';
+                let discriminationInterpretation = '';
+                let overallInterpretation = '';
+                
+                if (difficulty >= 0.80) {
+                    difficultyInterpretation = 'ง่าย';
+                } else if (difficulty >= 0.20) {
+                    difficultyInterpretation = 'ปานกลาง';
+                } else {
+                    difficultyInterpretation = 'ยาก';
+                }
+                
+                if (discrimination >= 0.40) {
+                    discriminationInterpretation = 'ดีมาก';
+                    overallInterpretation = 'text-green-600';
+                } else if (discrimination >= 0.30) {
+                    discriminationInterpretation = 'ดี';
+                    overallInterpretation = 'text-blue-600';
+                } else if (discrimination >= 0.20) {
+                    discriminationInterpretation = 'พอใช้';
+                    overallInterpretation = 'text-yellow-600';
+                } else {
+                    discriminationInterpretation = 'ควรปรับปรุง';
+                    overallInterpretation = 'text-red-600';
+                }
+                
+                const row = $(`
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-3 py-2 font-semibold">Q${i}</td>
+                        <td class="px-3 py-2">${difficulty.toFixed(3)} (${difficultyInterpretation})</td>
+                        <td class="px-3 py-2">${discrimination.toFixed(3)} (${discriminationInterpretation})</td>
+                        <td class="px-3 py-2">${pointBiserial.toFixed(3)}</td>
+                        <td class="px-3 py-2">
+                            <span class="font-semibold ${overallInterpretation}">${discriminationInterpretation}</span>
+                        </td>
+                    </tr>
+                `);
+                tbody.append(row);
+            }
+        }
     </script>
 </body>
 </html>
